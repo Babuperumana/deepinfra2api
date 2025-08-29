@@ -8,9 +8,8 @@ WORKDIR /app
 COPY package.json .
 COPY bun.lock .
 
-# 复制源代码和数据文件
+# 复制源代码
 COPY index.ts .
-COPY source_.json .
 
 # 安装依赖
 RUN bun install
