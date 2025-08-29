@@ -6,6 +6,11 @@ interface ModelData {
     owned_by: string;
 }
 
+interface ChatCompletionRequest {
+    model: string;
+    [key: string]: any; // Allow additional properties
+}
+
 // Load configuration from environment variables
 const CONFIG = {
     port: parseInt(process.env.PORT || '12506'),
@@ -176,7 +181,7 @@ const server = Bun.serve({
 
         try {
             // Clone request body
-            const body = await request.json();
+            const body = await request.json() as ChatCompletionRequest;
             log('INFO', `Chat completion request for model: ${body.model}`);
 
             // Construct new request headers
