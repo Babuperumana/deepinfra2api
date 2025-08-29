@@ -1,20 +1,55 @@
-// Import source data
-import sourceData from './source_.json' with { type: 'json' };
-
 // Define interfaces for better type safety
-interface SourceModel {
-    full_name: string;
-    display_name: string;
-    description: string;
-    type: string;
-}
-
 interface ModelData {
     id: string;
     object: string;
     created: number;
     owned_by: string;
 }
+
+// Load configuration from environment variables
+const CONFIG = {
+    port: parseInt(process.env.PORT || '12506'),
+    apiKey: process.env.API_KEY || 'default-key-change-me',
+    corsOrigins: process.env.CORS_ORIGINS ? process.env.CORS_ORIGINS.split(',') : ['*']
+};
+
+// Simple logging function
+function log(level: 'INFO' | 'ERROR' | 'WARN', message: string, data?: any) {
+    const timestamp = new Date().toISOString();
+    const logMessage = `[${timestamp}] ${level}: ${message}`;
+    if (data) {
+        console.log(logMessage, data);
+    } else {
+        console.log(logMessage);
+    }
+}
+
+// Allowed models list - using a Set for efficient lookups and to avoid duplicates
+const allowedModels = new Set([
+  "deepseek-ai/DeepSeek-V3.1",
+  "openai/gpt-oss-120b",
+  "Qwen/Qwen3-Coder-480B-A35B-Instruct-Turbo",
+  "zai-org/GLM-4.5",
+  "moonshotai/Kimi-K2-Instruct",
+  "allenai/olmOCR-7B-0725-FP8",
+  "Qwen/Qwen3-235B-A22B-Thinking-2507",
+  "Qwen/Qwen3-Coder-480B-A35B-Instruct",
+  "zai-org/GLM-4.5-Air",
+  "mistralai/Voxtral-Small-24B-2507",
+  "mistralai/Voxtral-Mini-3B-2507",
+  "deepseek-ai/DeepSeek-R1-0528-Turbo",
+  "Qwen/Qwen3-235B-A22B-Instruct-2507",
+  "Qwen/Qwen3-30B-A3B",
+  "Qwen/Qwen3-32B",
+  "Qwen/Qwen3-14B",
+  "deepseek-ai/DeepSeek-V3-0324-Turbo",
+  "bigcode/starcoder2-15b",
+  "Phind/Phind-CodeLlama-34B-v2",
+  "Gryphe/MythoMax-L2-13b",
+  "openchat/openchat_3.5",
+  "openai/whisper-tiny",
+  "meta-llama/Llama-3.3-70B-Instruct"
+]);
 
 // Cache for source data to improve performance
 let cachedSourceData: ModelData[] | null = null;
@@ -40,6 +75,15 @@ function createJsonResponse<T>(data: T, status = 200) {
     });
 }
 
+// Helper function to validate API key
+function validateApiKey(authHeader: string): boolean {
+    if (!authHeader.startsWith('Bearer ')) {
+        return false;
+    }
+    const token = authHeader.slice(7); // Remove 'Bearer ' prefix
+    return token === CONFIG.apiKey;
+}
+
 // Helper function to get models data with caching
 async function getModelsData() {
     const now = Date.now();
@@ -49,12 +93,12 @@ async function getModelsData() {
         return cachedSourceData;
     }
 
-    // Process source data
-    cachedSourceData = (sourceData as SourceModel[]).map((model) => ({
-        id: model.full_name,
-        object: "model",
-        created: 1640995200,
-        owned_by: model.full_name.split('/')[0] as string
+    // Convert allowedModels Set to ModelData array
+    cachedSourceData = Array.from(allowedModels).map((modelName) => ({
+      id: modelName,
+      object: "model",
+      created: 1640995200,
+      owned_by: modelName.split('/')[0] || modelName
     }));
 
     cacheTimestamp = now;
@@ -63,7 +107,7 @@ async function getModelsData() {
 
 // Main server logic
 const server = Bun.serve({
-    port: 12506,
+    port: CONFIG.port,
     async fetch(request: Request) {
         const url = new URL(request.url);
 
@@ -74,6 +118,7 @@ const server = Bun.serve({
 
         // Handle GET requests for models list
         if (request.method === "GET" && url.pathname === "/models") {
+            log('INFO', `Models list requested from ${request.headers.get('CF-Connecting-IP') || 'unknown'}`);
             try {
                 const modelsData = await getModelsData();
                 return createJsonResponse({
@@ -81,28 +126,58 @@ const server = Bun.serve({
                     data: modelsData
                 });
             } catch (error) {
-                console.error("Error fetching models:", error);
+                log('ERROR', 'Error fetching models', error);
                 return createJsonResponse({
-                    error: "Failed to get models",
-                    details: (error as Error).message
+                    error: {
+                        message: "Failed to get models",
+                        type: "server_error",
+                        code: 500
+                    }
                 }, 500);
             }
         }
 
         // Handle POST requests for chat completions
         if (request.method !== "POST" || url.pathname !== "/chat/completions") {
-            return createJsonResponse({ error: "Method not allowed" }, 405);
+            log('WARN', `Invalid request method/path: ${request.method} ${url.pathname}`);
+            return createJsonResponse({
+                error: {
+                    message: "Method not allowed",
+                    type: "invalid_request_error",
+                    code: 405
+                }
+            }, 405);
         }
 
         // Validate Authorization header
         const authHeader = request.headers.get("Authorization");
         if (!authHeader) {
-            return createJsonResponse({ error: "Missing Authorization header" }, 401);
+            log('WARN', 'Missing Authorization header');
+            return createJsonResponse({
+                error: {
+                    message: "Missing Authorization header",
+                    type: "authentication_error",
+                    code: 401
+                }
+            }, 401);
+        }
+
+        // Validate API key
+        if (!validateApiKey(authHeader)) {
+            log('WARN', 'Invalid API key provided');
+            return createJsonResponse({
+                error: {
+                    message: "Invalid API key",
+                    type: "authentication_error",
+                    code: 401
+                }
+            }, 401);
         }
 
         try {
             // Clone request body
             const body = await request.json();
+            log('INFO', `Chat completion request for model: ${body.model}`);
 
             // Construct new request headers
             const headers = new Headers({
@@ -110,7 +185,7 @@ const server = Bun.serve({
                 "Accept": "text/event-stream",
                 "Accept-Encoding": "gzip, deflate, br, zstd",
                 "Content-Type": "application/json",
-                "sec-ch-ua-platform": "Arch Linux",
+                "sec-ch-ua-platform": "Windows",
                 "X-Deepinfra-Source": "web-page",
                 "sec-ch-ua": "\"Not(A:Brand\";v=\"99\", \"Microsoft Edge\";v=\"133\", \"Chromium\";v=\"133\"",
                 "sec-ch-ua-mobile": "?0",
@@ -128,6 +203,8 @@ const server = Bun.serve({
                 body: JSON.stringify(body)
             });
 
+            log('INFO', `DeepInfra response status: ${response.status}`);
+
             // Construct response
             return new Response(response.body, {
                 status: response.status,
@@ -139,10 +216,16 @@ const server = Bun.serve({
             });
 
         } catch (error) {
-            console.error("Error in chat completion:", error);
-            return createJsonResponse({ error: (error as Error).message }, 500);
+            log('ERROR', 'Error in chat completion', error);
+            return createJsonResponse({
+                error: {
+                    message: (error as Error).message,
+                    type: "server_error",
+                    code: 500
+                }
+            }, 500);
         }
     },
 });
 
-console.log(`Server running at http://localhost:${server.port}`);
+log('INFO', `Server started on port ${server.port}`);
