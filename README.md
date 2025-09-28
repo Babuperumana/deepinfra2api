@@ -1,72 +1,72 @@
 # deepinfra2api
 
-## 项目介绍
+## Project Overview
 
-deepinfra2api 是一个代理服务，允许您通过标准的OpenAI API格式访问DeepInfra上的各种AI模型。它提供了一个简单的接口来获取模型列表和发送聊天完成请求，使您可以轻松集成DeepInfra的AI模型到您的应用程序中。
+**deepinfra2api** is a proxy service that lets you access various AI models hosted on DeepInfra using the standard OpenAI API format. It provides a simple interface to list models and send chat completion requests, making it easy to integrate DeepInfra’s AI models into your applications.
 
-该项目使用Bun构建，支持通过Docker部署，并提供了完整的API文档和使用示例。
+The project is built with **Bun**, supports deployment via **Docker**, and includes complete API documentation and usage examples.
 
-## 环境变量配置
+## Environment Variables
 
-项目支持以下环境变量配置：
+The project supports the following environment variables:
 
-- `PORT` - 服务监听端口，默认为 `12506`
-- `API_KEY` - API密钥，用于验证请求，默认为 `default-key-change-me`
-- `CORS_ORIGINS` - 允许的CORS来源，多个来源用逗号分隔，默认为 `*`（允许所有来源）
+- `PORT` — Service listen port (default: `12506`)
+- `API_KEY` — API key used to authenticate requests (default: `default-key-change-me`)
+- `CORS_ORIGINS` — Allowed CORS origins (comma-separated). Default: `*` (allow all origins)
 
-## 本地运行
+## Run Locally
 
-### 使用Bun（推荐）
+### Using Bun (recommended)
 
-安装依赖:
+Install dependencies:
 
 ```bash
 bun install
 ```
 
-运行服务:
+Start the service:
 
 ```bash
 bun run index.ts
 ```
 
-服务将在 http://localhost:12506 上运行。
+The service will run at: <http://localhost:12506>
 
-### 使用Docker
+### Using Docker
 
-从GitHub Container Registry拉取镜像:
+Pull the image from GitHub Container Registry:
 
 ```bash
 docker pull ghcr.io/xlfish233/deepinfra2api:latest
 ```
 
-运行容器:
+Run the container:
 
 ```bash
 docker run -p 12506:12506 ghcr.io/xlfish233/deepinfra2api:latest
 ```
 
-或者使用docker-compose:
+Or use Docker Compose:
 
 ```bash
 docker-compose up -d
 ```
 
-你也可以自己构建镜像:
+You can also build the image yourself:
 
 ```bash
 docker build -t deepinfra2api .
 ```
 
-然后运行:
+Then run:
 
 ```bash
 docker run -p 12506:12506 deepinfra2api
 ```
 
-### 使用Docker Compose（推荐）
+### Using Docker Compose (recommended)
 
-创建一个 `docker-compose.yml` 文件：
+Create a `docker-compose.yml` file:
 
 ```yaml
 version: '3.8'
@@ -82,19 +82,19 @@ services:
       - CORS_ORIGINS=*
 ```
 
-然后运行:
+Then start it:
 
 ```bash
 docker-compose up -d
 ```
 
-## API端点
+## API Endpoints
 
-### GET /models
+### `GET /models`
 
-获取可用模型列表。
+Retrieve the list of available models.
 
-**响应示例:**
+**Response example:**
 ```json
 {
   "object": "list",
@@ -104,17 +104,17 @@ docker-compose up -d
       "object": "model",
       "created": 1640995200,
       "owned_by": "meta-llama"
-    },
-    // ... 更多模型
+    }
+    // ... more models
   ]
 }
 ```
 
-### POST /chat/completions
+### `POST /chat/completions`
 
-发送聊天完成请求。
+Send a chat completion request.
 
-**请求示例:**
+**Request example:**
 ```json
 {
   "model": "meta-llama/Llama-3.3-70B-Instruct-Turbo",
@@ -127,39 +127,36 @@ docker-compose up -d
 }
 ```
 
-**响应:**
-该端点将直接返回DeepInfra API的响应，支持流式传输。
+**Response:**
+This endpoint proxies the response directly from the DeepInfra API and supports streaming.
 
-## 使用方法
+## Usage
 
-服务启动后，您可以像使用OpenAI API一样使用它：
+Once the service is running, you can use it like the OpenAI API:
 
 ```javascript
-// 示例：获取模型列表
+// Example: list models
 fetch('http://localhost:12506/models')
 
-// 示例：发送聊天请求
+// Example: send a chat request
 fetch('http://localhost:12506/chat/completions', {
   method: 'POST',
   headers: {
     'Content-Type': 'application/json',
-    'Authorization': 'Bearer YOUR_TOKEN' // 任意值，但必须提供
+    'Authorization': 'Bearer YOUR_TOKEN' // any non-empty value required
   },
   body: JSON.stringify({
     model: "meta-llama/Llama-3.3-70B-Instruct-Turbo",
     messages: [
-      {
-        role: "user",
-        content: "Hello!"
-      }
+      { role: "user", content: "Hello!" }
     ]
   })
 })
 ```
 
-## 支持的模型
+## Supported Models
 
-该项目支持以下DeepInfra模型：
+This project supports the following DeepInfra models:
 
 - deepseek-ai/DeepSeek-V3.1
 - openai/gpt-oss-120b
@@ -185,8 +182,8 @@ fetch('http://localhost:12506/chat/completions', {
 - openai/whisper-tiny
 - meta-llama/Llama-3.3-70B-Instruct
 
-## 部署
+## Deployment
 
-此项目配置了GitHub Actions CI/CD，会自动将镜像推送到GitHub Container Registry (GHCR)。
+GitHub Actions CI/CD is configured for this project and will automatically push the image to GitHub Container Registry (GHCR).
 
-This project was created using `bun init` in bun v1.2.20. [Bun](https://bun.com) is a fast all-in-one JavaScript runtime.
+> This project was created using `bun init` on Bun v1.2.20. [Bun](https://bun.com) is a fast all-in-one JavaScript runtime.
