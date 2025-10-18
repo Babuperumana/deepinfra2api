@@ -103,7 +103,7 @@ async function getModelsData() {
       id: modelName,
       object: "model",
       created: 1640995200,
-      owned_by: modelName.split('/')[0] || modelName
+      owned_by: "Babu_Perumana" || modelName
     }));
 
     cacheTimestamp = now;
