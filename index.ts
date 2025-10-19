@@ -14,7 +14,7 @@ interface ChatCompletionRequest {
 // Load configuration from environment variables
 const CONFIG = {
     port: parseInt(process.env.PORT || '12506'),
-    apiKey: process.env.API_KEY || 'default-key-change-me',
+    apiKey: process.env.API_KEY || 'kaippulli-temple',
     corsOrigins: process.env.CORS_ORIGINS ? process.env.CORS_ORIGINS.split(',') : ['*']
 };
 
